@@ -1,7 +1,7 @@
 // Main loop for Solmar Bay: wires input, audio, the simulation and the renderer
 // together, owns the save in localStorage, and honours ?shot= scenes for capture.
 import { createGame, stepGame, SCREEN_TITLE, SCREEN_PLAY, SCREEN_PAUSE, SCREEN_OVER, SCREEN_WIN, STEP } from './sim.js';
-import { render } from './render.js';
+import { render, viewOrigin } from './render.js';
 import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { stageShot } from './shots.js';
@@ -58,9 +58,10 @@ function saveGame() {
 
 function toScreenAim() {
   // The sim aims in world coordinates; the mouse gives screen coordinates.
-  const camX = state.camera.x - canvas.width / 2;
-  const camY = state.camera.y - canvas.height / 2;
-  return { aimX: input.aimX + camX, aimY: input.aimY + camY };
+  // Aim through the same clamped view origin the renderer uses, so the mouse
+  // still points where it looks near the map edges.
+  const o = viewOrigin(state, canvas.width, canvas.height);
+  return { aimX: input.aimX + o.x, aimY: input.aimY + o.y };
 }
 
 function frame(now) {

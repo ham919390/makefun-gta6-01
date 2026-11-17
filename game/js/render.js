@@ -1,7 +1,7 @@
 // Canvas rendering for Solmar Bay: top-down city, cars, people, police, HUD,
 // minimap, day/night tint and rain, plus the title / pause / game-over screens.
 import { WORLD, ROAD_W, DISTRICTS } from './config.js';
-import { SCREEN_TITLE, SCREEN_PAUSE, SCREEN_OVER, SCREEN_WIN, currentMission } from './sim.js';
+import { SCREEN_TITLE, SCREEN_PLAY, SCREEN_PAUSE, SCREEN_OVER, SCREEN_WIN, currentMission } from './sim.js';
 import { districtAt } from './world.js';
 
 function skyTint(clock) {
@@ -39,9 +39,18 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y, x + w, y, r); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.closePath();
 }
 
+export function viewOrigin(state, w, h) {
+  // Top-left world coordinate of the view, clamped so the view never shows
+  // void beyond the world edge; when the viewport is wider than the world
+  // (a tall phone window, a wide monitor) the world is centred instead.
+  const ox = w >= WORLD ? (WORLD - w) / 2 : Math.min(Math.max(state.camera.x - w / 2, 0), WORLD - w);
+  const oy = h >= WORLD ? (WORLD - h) / 2 : Math.min(Math.max(state.camera.y - h / 2, 0), WORLD - h);
+  return { x: ox, y: oy };
+}
+
 export function render(ctx, state, view, input) {
   const { w, h } = view;
-  const camX = state.camera.x - w / 2, camY = state.camera.y - h / 2;
+  const { x: camX, y: camY } = viewOrigin(state, w, h);
   const tint = skyTint(state.clock);
   ctx.fillStyle = '#0e1a24'; ctx.fillRect(0, 0, w, h);
   ctx.save();
@@ -124,7 +133,9 @@ export function render(ctx, state, view, input) {
     ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(p.angle) * 22, p.y + Math.sin(p.angle) * 22); ctx.stroke();
   }
   // Day/night + rain overlays (world space, then screen space below)
-  ctx.fillStyle = `rgba(8,12,40,${(1 - tint) * 0.55})`; ctx.fillRect(camX, camY, w, h);
+  // The tint is screen space (the transform is restored), so it covers the
+  // whole view from the origin — the old camX/camY offset left a strip untinted.
+  ctx.fillStyle = `rgba(8,12,40,${(1 - tint) * 0.55})`; ctx.fillRect(0, 0, w, h);
   ctx.restore();
 
   if (state.rain > 0) {
